@@ -73,7 +73,7 @@ Devuelve JSON con:
     res.json({
       status: "ok",
       raw: texto,
-      structured: result,
+      structured: parsed,
     });
 
   } catch (error) {
