@@ -1,74 +1,87 @@
 ﻿const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
+const OpenAI = require("openai");
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ✅ CORS correcto
-app.use(cors({
-  origin: "*"
-}));
-
+// CORS
+app.use(cors({ origin: "*" }));
 app.options("*", cors());
 
-// Endpoint
-const axios = require("axios");
+// OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
+// ENDPOINT
 app.post("/transcribe", upload.single("file"), async (req, res) => {
   try {
-    // 1. validar que llegó archivo
     if (!req.file) {
       return res.status(400).json({ error: "No file received" });
     }
 
-    console.log("Procesando audio...");
+    console.log("Procesando audio con OpenAI...");
 
-    // 2. convertir audio a base64
-    const audioBase64 = req.file.buffer.toString("base64");
+    // 1. TRANSCRIPCIÓN
+    const transcription = await openai.audio.transcriptions.create({
+      file: req.file.buffer,
+      model: "gpt-4o-transcribe",
+      language: "es",
+    });
 
-    // 3. enviar audio a Google
-    const response = await axios.post(
-      `https://speech.googleapis.com/v1/speech:recognize?key=${process.env.GOOGLE_API_KEY}`,
-      {
-        config: {
-          encoding: "WEBM_OPUS",
-          languageCode: "es-ES"
+    const texto = transcription.text;
+
+    console.log("Texto base:", texto);
+
+    // 2. ESTRUCTURAR COMO EXPEDIENTE MÉDICO
+    const structured = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `
+Eres un asistente médico. Convierte transcripciones en expedientes clínicos estructurados.
+
+Devuelve JSON con:
+- motivo_consulta
+- sintomas
+- diagnostico_probable
+- observaciones
+`,
         },
-        audio: {
-          content: audioBase64
-        }
-      }
-    );
+        {
+          role: "user",
+          content: texto,
+        },
+      ],
+    });
 
-    // 4. sacar el texto
-    const transcript =
-      response.data.results?.[0]?.alternatives?.[0]?.transcript || "";
+    const result = structured.choices[0].message.content;
 
-    console.log("Texto:", transcript);
-
-    // 5. devolver resultado
     res.json({
       status: "ok",
-      transcript
+      raw: texto,
+      structured: result,
     });
 
   } catch (error) {
-    console.error("ERROR:", error.response?.data || error.message);
+    console.error("ERROR:", error);
 
     res.status(500).json({
       error: "Error en transcripción",
-      detail: error.response?.data || error.message
+      detail: error.message,
     });
   }
 });
 
-// Health check
+// HEALTH CHECK
 app.get("/", (req, res) => {
   res.send("OK");
 });
 
-// 🔥 CRÍTICO
+// PORT
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
