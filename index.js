@@ -61,7 +61,14 @@ Devuelve JSON con:
       ],
     });
 
-    const result = structured.choices[0].message.content;
+    // const result = structured.choices[0].message.content;
+    let result = structured.choices[0].message.content;
+
+    // limpiar markdown ```json
+    result = result.replace(/```json|```/g, "").trim();
+
+    // convertir a objeto real
+    const parsed = JSON.parse(result);
 
     res.json({
       status: "ok",
