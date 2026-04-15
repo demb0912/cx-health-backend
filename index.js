@@ -13,22 +13,53 @@ app.use(cors({
 app.options("*", cors());
 
 // Endpoint
-app.post("/transcribe", upload.single("file"), (req, res) => {
+const axios = require("axios");
+
+app.post("/transcribe", upload.single("file"), async (req, res) => {
   try {
+    // 1. validar que llegó archivo
     if (!req.file) {
       return res.status(400).json({ error: "No file received" });
     }
 
-    console.log("Audio recibido:", req.file.size);
+    console.log("Procesando audio...");
 
+    // 2. convertir audio a base64
+    const audioBase64 = req.file.buffer.toString("base64");
+
+    // 3. enviar audio a Google
+    const response = await axios.post(
+      `https://speech.googleapis.com/v1/speech:recognize?key=${process.env.GOOGLE_API_KEY}`,
+      {
+        config: {
+          encoding: "WEBM_OPUS",
+          languageCode: "es-ES"
+        },
+        audio: {
+          content: audioBase64
+        }
+      }
+    );
+
+    // 4. sacar el texto
+    const transcript =
+      response.data.results?.[0]?.alternatives?.[0]?.transcript || "";
+
+    console.log("Texto:", transcript);
+
+    // 5. devolver resultado
     res.json({
       status: "ok",
-      message: "Audio recibido correctamente"
+      transcript
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error interno" });
+    console.error("ERROR:", error.response?.data || error.message);
+
+    res.status(500).json({
+      error: "Error en transcripción",
+      detail: error.response?.data || error.message
+    });
   }
 });
 
