@@ -68,7 +68,15 @@ Devuelve JSON con:
     result = result.replace(/```json|```/g, "").trim();
 
     // convertir a objeto real
-    const parsed = JSON.parse(result);
+    //const parsed = JSON.parse(result);
+    let parsed;
+
+    try {
+      parsed = JSON.parse(result);
+    } catch (e) {
+      console.error("Error parseando JSON:", result);
+      parsed = { raw: result };
+    }
 
     res.json({
       status: "ok",
