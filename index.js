@@ -2,6 +2,7 @@
 const multer = require("multer");
 const cors = require("cors");
 const OpenAI = require("openai");
+const { toFile } = require("openai/uploads");
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -25,8 +26,10 @@ app.post("/transcribe", upload.single("file"), async (req, res) => {
     console.log("Procesando audio con OpenAI...");
 
     // 1. TRANSCRIPCIÓN
+    const file = await toFile(req.file.buffer, "audio.webm");
+
     const transcription = await openai.audio.transcriptions.create({
-      file: req.file.buffer,
+      file: file,
       model: "gpt-4o-transcribe",
       language: "es",
     });
