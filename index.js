@@ -46,32 +46,42 @@ app.post("/transcribe", upload.single("file"), async (req, res) => {
         {
           role: "system",
           content: `
-          Eres un asistente médico experto.
+          Eres un asistente médico experto en emergencias.
 
           Convierte la transcripción en un expediente clínico estructurado.
 
-          Devuelve SOLO JSON válido (sin markdown, sin texto adicional) con este formato exacto:
+          Devuelve SOLO JSON válido (sin markdown) con este formato exacto:
 
           {
             "soap": {
               "subjective": "síntomas y relato del paciente",
               "objective": "hallazgos clínicos observables",
               "assessment": "diagnóstico probable",
-              "plan": "plan de manejo o siguientes pasos"
+              "plan": "plan de manejo"
             },
             "icd10": [
               {
                 "code": "código ICD-10",
-                "description": "descripción del diagnóstico"
+                "description": "descripción"
               }
-            ]
+            ],
+            "triage": {
+              "level": "critico | urgente | moderado | leve",
+              "justification": "explicación clínica breve",
+              "recommended_action": "acción inmediata recomendada"
+            }
           }
 
-          Reglas:
-          - Usa terminología médica profesional
-          - Si hay múltiples diagnósticos, incluye varios ICD-10
-          - Sé clínicamente coherente
-          - No inventes datos no mencionados
+          Reglas de triage:
+          - critico → riesgo de muerte inmediata (hemorragia, trauma severo, dolor torácico severo)
+          - urgente → requiere atención rápida (dolor intenso, infección seria)
+          - moderado → estable pero necesita evaluación
+          - leve → no urgente
+
+          Reglas generales:
+          - Usa lenguaje médico profesional
+          - No inventes datos
+          - Sé consistente clínicamente
           `,
         },
         {
