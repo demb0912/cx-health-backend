@@ -149,41 +149,45 @@ wss.on("connection", (ws) => {
 
   let lastCall = 0;
   
-  ws.on("message", async (message) => {
-    try {
-      if (!message || message.length === 0) return; // Validamos que el mensaje no este vacío para evitar costos
+  let audioChunks = [];
 
-      const now = Date.now();
-      if (now - lastCall < 800) return;
-      lastCall = now;
+ws.on("message", async (message) => {
+  try {
+    if (!message || message.length === 0) return;
 
-      const audioBase64 = message.toString();
+    // 🔥 guardar chunk
+    audioChunks.push(Buffer.from(message.toString(), "base64"));
 
-      const file = await toFile(
-        Buffer.from(audioBase64, "base64"),
-        "audio.webm"
-      );
+    // 🔥 cada 5 chunks procesamos
+    if (audioChunks.length < 5) return;
 
-      const response = await openai.audio.transcriptions.create({
-        file: file,
-        model: "gpt-4o-transcribe",
-        language: "es",
-      });
+    const combined = Buffer.concat(audioChunks);
+    audioChunks = []; // reset
 
-      ws.send(JSON.stringify({
-        type: "transcription",
-        text: response.text
-      }));
+    console.log("Procesando buffer completo...");
 
-    } catch (err) {
-      console.error("WS error:", err);
+    const file = await toFile(combined, "audio.webm");
 
-      ws.send(JSON.stringify({
-        type: "error",
-        message: err.message
-      }));
-    }
-  });
+    const response = await openai.audio.transcriptions.create({
+      file: file,
+      model: "gpt-4o-transcribe",
+      language: "es",
+    });
+
+    ws.send(JSON.stringify({
+      type: "transcription",
+      text: response.text
+    }));
+
+  } catch (err) {
+    console.error("WS error:", err);
+
+    ws.send(JSON.stringify({
+      type: "error",
+      message: err.message
+    }));
+  }
+});
 
   ws.on("close", () => {
     console.log("Cliente desconectado");
