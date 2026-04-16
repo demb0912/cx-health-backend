@@ -132,13 +132,9 @@ app.get("/", (req, res) => {
 // PORT
 const PORT = process.env.PORT || 8080;
 
-const server = app.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
-
-// Conectamos el Web Socket al Server
-const WebSocket = require("ws");
-const wss = new WebSocket.Server({ server });
 
 // WEB Socket
 const WebSocket = require("ws");
