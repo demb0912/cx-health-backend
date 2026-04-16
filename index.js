@@ -41,18 +41,38 @@ app.post("/transcribe", upload.single("file"), async (req, res) => {
     // 2. ESTRUCTURAR COMO EXPEDIENTE MÉDICO
     const structured = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      response_format: { type: "json_object" }, // 🔥 clave
       messages: [
         {
           role: "system",
           content: `
-Eres un asistente médico. Convierte transcripciones en expedientes clínicos estructurados.
+          Eres un asistente médico experto.
 
-Devuelve JSON con:
-- motivo_consulta
-- sintomas
-- diagnostico_probable
-- observaciones
-`,
+          Convierte la transcripción en un expediente clínico estructurado.
+
+          Devuelve SOLO JSON válido (sin markdown, sin texto adicional) con este formato exacto:
+
+          {
+            "soap": {
+              "subjective": "síntomas y relato del paciente",
+              "objective": "hallazgos clínicos observables",
+              "assessment": "diagnóstico probable",
+              "plan": "plan de manejo o siguientes pasos"
+            },
+            "icd10": [
+              {
+                "code": "código ICD-10",
+                "description": "descripción del diagnóstico"
+              }
+            ]
+          }
+
+          Reglas:
+          - Usa terminología médica profesional
+          - Si hay múltiples diagnósticos, incluye varios ICD-10
+          - Sé clínicamente coherente
+          - No inventes datos no mencionados
+          `,
         },
         {
           role: "user",
@@ -81,7 +101,7 @@ Devuelve JSON con:
     res.json({
       status: "ok",
       raw: texto,
-      structured: parsed,
+      medical: parsed,
     });
 
   } catch (error) {
