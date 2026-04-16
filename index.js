@@ -129,46 +129,55 @@ app.get("/", (req, res) => {
   res.send("OK");
 });
 
-// PORT
+// =======================
+// 🔥 SERVER + WEBSOCKET
+// =======================
+
+const http = require("http");
+const WebSocket = require("ws");
+
 const PORT = process.env.PORT || 8080;
 
-const server = app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+// 🔥 crear servidor UNA SOLA VEZ
+const server = http.createServer(app);
 
-// Conectamos el Web Socket al Server
-const WebSocket = require("ws");
+// 🔥 conectar websocket al mismo server
 const wss = new WebSocket.Server({ server });
-
-// WEB Socket
-const WebSocket = require("ws");
-
-const wss = new WebSocket.Server({ server: app.listen(PORT) });
 
 wss.on("connection", (ws) => {
   console.log("Cliente conectado a streaming");
 
+  let lastCall = 0;
+  
   ws.on("message", async (message) => {
     try {
-      // message = audio chunk (base64)
+      if (!message || message.length === 0) return; // Validamos que el mensaje no este vacío para evitar costos
+
+      const now = Date.now();
+      if (now - lastCall < 1500) return;
+      lastCall = now;
+
       const audioBase64 = message.toString();
 
-      // enviar a OpenAI (simplificado streaming)
+      const file = await toFile(
+        Buffer.from(audioBase64, "base64"),
+        "audio.webm"
+      );
+
       const response = await openai.audio.transcriptions.create({
-        file: Buffer.from(audioBase64, "base64"),
+        file: file,
         model: "gpt-4o-transcribe",
         language: "es",
       });
 
-      const texto = response.text;
-
       ws.send(JSON.stringify({
         type: "transcription",
-        text: texto
+        text: response.text
       }));
 
     } catch (err) {
-      console.error(err);
+      console.error("WS error:", err);
+
       ws.send(JSON.stringify({
         type: "error",
         message: err.message
@@ -179,4 +188,9 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     console.log("Cliente desconectado");
   });
+});
+
+// 🔥 arrancar TODO aquí (una sola vez)
+server.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
