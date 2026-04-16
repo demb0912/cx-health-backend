@@ -154,7 +154,7 @@ wss.on("connection", (ws) => {
       if (!message || message.length === 0) return; // Validamos que el mensaje no este vacío para evitar costos
 
       const now = Date.now();
-      if (now - lastCall < 1500) return;
+      if (now - lastCall < 800) return;
       lastCall = now;
 
       const audioBase64 = message.toString();
