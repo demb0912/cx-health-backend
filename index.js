@@ -156,14 +156,14 @@ wss.on("connection", (ws) => {
       if (!message || message.length === 0) return;
 
       const now = Date.now();
-      if (now - lastCall < 700) return;
+      if (now - lastCall < 250) return;
       lastCall = now;
 
       // 🔥 guardar chunk
       audioChunks.push(Buffer.from(message.toString(), "base64"));
 
       // 🔥 mantener ventana deslizante (máx 3 chunks)
-      if (audioChunks.length > 3) {
+      if (audioChunks.length > 2) {
         audioChunks.shift(); // elimina el más viejo
       }
 
@@ -180,9 +180,15 @@ wss.on("connection", (ws) => {
         language: "es",
       });
 
+      const text = response.text.trim();
+
+      // 🔥 evitar ruido mínimo
+      if (text.length < 5) return;
+
+      // 🔥 enviar SIEMPRE el texto completo (para consistencia)
       ws.send(JSON.stringify({
         type: "transcription",
-        text: response.text
+        text: text
       }));
 
     } catch (err) {
