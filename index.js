@@ -159,7 +159,7 @@ ws.on("message", async (message) => {
     audioChunks.push(Buffer.from(message.toString(), "base64"));
 
     // 🔥 cada 5 chunks procesamos
-    if (audioChunks.length < 5) return;
+    if (audioChunks.length < 3) return;
 
     const combined = Buffer.concat(audioChunks);
     audioChunks = []; // reset
