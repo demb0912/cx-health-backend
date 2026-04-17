@@ -148,46 +148,52 @@ wss.on("connection", (ws) => {
   console.log("Cliente conectado a streaming");
 
   let lastCall = 0;
-  
+
   let audioChunks = [];
 
-ws.on("message", async (message) => {
-  try {
-    if (!message || message.length === 0) return;
+  ws.on("message", async (message) => {
+    try {
+      if (!message || message.length === 0) return;
 
-    // 🔥 guardar chunk
-    audioChunks.push(Buffer.from(message.toString(), "base64"));
+      const now = Date.now();
+      if (now - lastCall < 700) return;
+      lastCall = now;
 
-    // 🔥 cada 5 chunks procesamos
-    if (audioChunks.length < 3) return;
+      // 🔥 guardar chunk
+      audioChunks.push(Buffer.from(message.toString(), "base64"));
 
-    const combined = Buffer.concat(audioChunks);
-    audioChunks = []; // reset
+      // 🔥 mantener ventana deslizante (máx 3 chunks)
+      if (audioChunks.length > 3) {
+        audioChunks.shift(); // elimina el más viejo
+      }
 
-    console.log("Procesando buffer completo...");
+      // 🔥 procesar siempre (no esperar a llenar)
+      const combined = Buffer.concat(audioChunks);
 
-    const file = await toFile(combined, "audio.webm");
+      console.log("Procesando buffer completo...");
 
-    const response = await openai.audio.transcriptions.create({
-      file: file,
-      model: "gpt-4o-transcribe",
-      language: "es",
-    });
+      const file = await toFile(combined, "audio.webm");
 
-    ws.send(JSON.stringify({
-      type: "transcription",
-      text: response.text
-    }));
+      const response = await openai.audio.transcriptions.create({
+        file: file,
+        model: "gpt-4o-transcribe",
+        language: "es",
+      });
 
-  } catch (err) {
-    console.error("WS error:", err);
+      ws.send(JSON.stringify({
+        type: "transcription",
+        text: response.text
+      }));
 
-    ws.send(JSON.stringify({
-      type: "error",
-      message: err.message
-    }));
-  }
-});
+    } catch (err) {
+      console.error("WS error:", err);
+
+      ws.send(JSON.stringify({
+        type: "error",
+        message: err.message
+      }));
+    }
+  });
 
   ws.on("close", () => {
     console.log("Cliente desconectado");
